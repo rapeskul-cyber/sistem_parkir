@@ -17,14 +17,31 @@ class DashboardController extends Controller
             $today = Carbon::today();
             $yesterday = Carbon::yesterday();
 
-            $memberAktif = Member::where('status', 'lunas')->count();
+            // Hitung member aktif secara dinamis (lunas DAN belum expired)
+            $memberAktif = Member::where('status', 'lunas')
+                ->where(function ($q) use ($now) {
+                    $q->whereNull('tanggal_expired')
+                      ->orWhere('tanggal_expired', '>=', $now);
+                })->count();
+
             $kendaraanHariIni = TiketParkir::whereDate('created_at', $today)->count();
-            $pendapatanHariIni = Transaksi::whereDate('created_at', $today)->sum('total_bayar');
+
+            // Hitung pendapatan hari ini sinkron (cek tanggal_bayar maupun created_at)
+            $pendapatanHariIni = Transaksi::where(function ($q) use ($today) {
+                $q->whereDate('tanggal_bayar', $today)
+                  ->orWhere(function ($sub) use ($today) {
+                      $sub->whereNull('tanggal_bayar')
+                          ->whereDate('created_at', $today);
+                  });
+            })->sum('total_bayar');
+
+            // Total akumulasi penerimaan kasir keseluruhan
+            $totalPenerimaan = Transaksi::sum('total_bayar');
 
             // Sedang Parkir dihitung murni dari tiket yang masih berstatus 'masuk'
             $sedangParkir = TiketParkir::where('status', 'masuk')->count();
 
-            $transaksiTerbaru = Transaksi::orderBy('created_at', 'desc')->take(5)->get();
+            $transaksiTerbaru = Transaksi::orderBy('id', 'desc')->take(5)->get();
 
             // ==========================================
             // 1. DATA REALTIME HARI INI (Per 2 Jam: 06:00 - 22:00)
@@ -93,6 +110,7 @@ class DashboardController extends Controller
                     'member_aktif'        => $memberAktif,
                     'kendaraan_hari_ini'  => $kendaraanHariIni,
                     'pendapatan_hari_ini' => $pendapatanHariIni,
+                    'total_penerimaan'    => $totalPenerimaan,
                     'sedang_parkir'       => $sedangParkir,
                     'transaksi_terbaru'   => $transaksiTerbaru,
                     'chart' => [

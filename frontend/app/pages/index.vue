@@ -15,6 +15,11 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const showPassword = ref(false)
 
+const normalizeRole = (role: string) => {
+  const normalized = (role || '').toLowerCase().trim().replace(/[\s-]+/g, '_')
+  return normalized === 'superadmin' ? 'super_admin' : normalized
+}
+
 const handleLogin = async () => {
   errorMessage.value = ''
   isLoading.value = true
@@ -27,17 +32,19 @@ const handleLogin = async () => {
 
     if (response.data && response.data.token) {
       localStorage.setItem('token', response.data.token)
-      
-      const userRole = response.data.user?.role || 'petugas'
+
+      const userRole = normalizeRole(response.data.user?.role || 'petugas')
       localStorage.setItem('role', userRole)
 
-      if (userRole === 'admin') {
+      if (userRole === 'admin' || userRole === 'super_admin') {
         router.push('/admin/dashboard')
       } else {
         router.push('/petugas/')
       }
     }
   } catch (error: any) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('role')
     errorMessage.value = error.response?.data?.message || 'Terjadi kesalahan saat login.'
   } finally {
     isLoading.value = false
@@ -82,9 +89,17 @@ const handleLogin = async () => {
         </div>
 
         <div>
-          <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2 ml-1">
-            Password
-          </label>
+          <div class="flex items-center justify-between mb-2 ml-1">
+            <label class="block text-xs font-black text-slate-700 uppercase tracking-wider">
+              Password
+            </label>
+            <NuxtLink
+              to="/forgot-password"
+              class="text-xs font-black text-slate-500 hover:text-slate-900 hover:underline transition"
+            >
+              Lupa Password?
+            </NuxtLink>
+          </div>
           <div class="relative">
             <input
               v-model="form.password"
@@ -96,7 +111,7 @@ const handleLogin = async () => {
             <button
               type="button"
               @click="showPassword = !showPassword"
-              class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 focus:outline-none"
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 focus:outline-none cursor-pointer"
             >
               <EyeIcon v-if="showPassword" class="w-5 h-5" />
               <EyeSlashIcon v-else class="w-5 h-5" />

@@ -2,62 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TiketParkir;
-use App\Models\Member;
 use Illuminate\Http\Request;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Models\TiketParkir;
 use Carbon\Carbon;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class TiketController extends Controller
 {
-    public function qrcode($kode)
-    {
-        if (ob_get_length()) {
-            ob_clean();
-        }
-
-        $qrSvg = trim(QrCode::format('svg')->size(150)->generate($kode));
-
-        return response($qrSvg, 200)
-            ->header('Content-Type', 'image/svg+xml; charset=utf-8');
-    }
-
     public function create(Request $request)
     {
         try {
-            // Ambil kategori dari request (default: motor jika kosong)
-            $kategori = strtolower($request->kategori ?? 'motor');
+            $kategori = $request->kategori ?: 'motor';
+            $kodeTiket = 'TKT-' . strtoupper(bin2hex(random_bytes(4)));
 
-            $randomNum = mt_rand(100, 999);
-            $kode = "A" . $randomNum;
-
-            while (TiketParkir::where('kode_tiket', $kode)->exists()) {
-                $randomNum = mt_rand(100, 999);
-                $kode = "A" . $randomNum;
-            }
-
-            $qrSvg = QrCode::format('svg')->size(200)->generate($kode);
-            $qrCodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrSvg);
+            $qrSvg = QrCode::format('svg')->size(200)->generate($kodeTiket);
+            $qrBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrSvg);
 
             $tiket = TiketParkir::create([
-                'kode_tiket'   => $kode,
-                'qr_code'      => $qrCodeBase64,
-                'kategori'     => $kategori, // <-- SIMPAN KATEGORI KENDARAAN (motor / mobil)
-                'status'       => 'masuk',
-                'waktu_masuk'  => now(),
-                'waktu_keluar' => null,
+                'kode_tiket'  => $kodeTiket,
+                'qr_code'     => $qrBase64,
+                'kategori'    => $kategori,
+                'plat_nomor'  => $request->plat_nomor ?? '-',
+                'status'      => 'masuk',
+                'waktu_masuk' => Carbon::now(),
             ]);
-            
+
             return response()->json([
                 'status'  => true,
-                'success' => true,
                 'message' => 'Tiket berhasil dibuat',
                 'data'    => $tiket
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'status'  => false,
-                'success' => false,
                 'message' => 'Gagal membuat tiket: ' . $e->getMessage()
             ], 500);
         }
@@ -65,105 +42,71 @@ class TiketController extends Controller
 
     public function showByKode($kode)
     {
-        $tiket = TiketParkir::where('kode_tiket', $kode)->first();
+        try {
+            $tiket = TiketParkir::where('kode_tiket', $kode)->first();
+            if (!$tiket) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Tiket tidak ditemukan'
+                ], 404);
+            }
 
-        if (!$tiket) {
+            return response()->json([
+                'status' => true,
+                'data'   => $tiket
+            ], 200);
+        } catch (\Throwable $e) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Kode tiket tidak ditemukan!'
-            ], 404);
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        $waktuMasuk = Carbon::parse($tiket->waktu_masuk ?? $tiket->created_at);
-        $waktuSekarang = Carbon::now();
-        $durasiJam = ceil($waktuMasuk->diffInMinutes($waktuSekarang) / 60);
-        if ($durasiJam < 1) $durasiJam = 1;
-
-        return response()->json([
-            'status' => true,
-            'data'   => [
-                'id'          => $tiket->id,
-                'kode_tiket'  => $tiket->kode_tiket,
-                'waktu_masuk' => $waktuMasuk->format('H:i:s d-m-Y'),
-                'durasi_jam'  => $durasiJam,
-                'status'      => $tiket->status
-            ]
-        ]);
     }
 
-    public function keluar($id)
+    public function qrcode($kode)
     {
-        $tiket = TiketParkir::findOrFail($id);
-
-        $tiket->update([
-            'status' => 'keluar',
-            'waktu_keluar' => now(),
-        ]);
-
-        return response()->json([
-            'status'  => true,
-            'success' => true,
-            'data'    => $tiket
-        ]);
-    }
-
-    public function index()
-    {
-        return response()->json([
-            'status' => true,
-            'data'   => TiketParkir::latest()->get()
-        ]);
-    }
-
-    public function show($id)
-    {
-        return response()->json([
-            'status' => true,
-            'data'   => TiketParkir::findOrFail($id)
-        ]);
+        try {
+            return response(QrCode::format('svg')->size(200)->generate($kode))
+                ->header('Content-Type', 'image/svg+xml');
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Error QR: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function kendaraanAktif()
     {
         try {
-            // HANYA ambil tiket yang berstatus 'masuk' (belum checkout)
-            $kendaraanParkir = TiketParkir::where('status', 'masuk')
-                ->latest('waktu_masuk')
+            $data = TiketParkir::where('status', 'masuk')
+                ->orderBy('id', 'desc')
                 ->get()
                 ->map(function ($item) {
-                    $isMember = str_starts_with($item->kode_tiket, 'MBR');
+                    $kat = strtolower($item->kategori ?: 'motor');
+                    $tipe = str_starts_with($item->kode_tiket, 'MBR-') ? 'Member' : 'Non-Member';
+
                     return [
-                        'id'         => $item->id,
-                        'kode_tiket' => $item->kode_tiket,
-                        'kategori'   => $item->kategori ?? ($isMember ? 'Mobil / Motor' : 'Motor'),
-                        'no_plat'    => $item->plat_nomor ?? $item->no_plat ?? '-',
-                        'created_at' => $item->waktu_masuk ?? $item->created_at,
-                        'tipe'       => $isMember ? 'Member' : 'Non-Member'
+                        'id'          => $item->id,
+                        'kode_tiket'  => $item->kode_tiket,
+                        'tipe'        => $tipe,
+                        'kategori'    => $kat,
+                        'no_plat'     => $item->plat_nomor ?: '-',
+                        'plat_nomor'  => $item->plat_nomor ?: '-',
+                        'waktu_masuk' => $item->waktu_masuk ?: $item->created_at,
+                        'status'      => $item->status,
                     ];
                 });
 
             return response()->json([
-                'status'  => true,
-                'message' => 'Daftar gabungan kendaraan aktif',
-                'data'    => $kendaraanParkir
+                'status' => true,
+                'data'   => $data
             ], 200);
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Gagal mengambil kendaraan aktif: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    public function destroy($id)
-    {
-        $tiket = TiketParkir::findOrFail($id);
-        $tiket->delete();
-
-        return response()->json([
-            'status'  => true,
-            'success' => true
-        ]);
     }
 }

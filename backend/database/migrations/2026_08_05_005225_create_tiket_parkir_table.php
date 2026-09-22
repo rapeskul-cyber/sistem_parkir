@@ -13,18 +13,13 @@ return new class extends Migration
     {
         Schema::create('tiket_parkir', function (Blueprint $table) {
             $table->id();
-
             $table->string('kode_tiket')->unique();
-
-$table->longText('qr_code')->nullable();
-
-            $table->enum('status', ['masuk', 'keluar'])
-                  ->default('masuk');
-
+            $table->longText('qr_code')->nullable();
+            $table->string('kategori', 20)->default('motor'); // motor / mobil
+            $table->string('plat_nomor', 20)->nullable();
+            $table->enum('status', ['masuk', 'keluar'])->default('masuk');
             $table->timestamp('waktu_masuk')->nullable();
-
             $table->timestamp('waktu_keluar')->nullable();
-
             $table->timestamps();
         });
     }

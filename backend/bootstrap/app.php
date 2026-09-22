@@ -15,8 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-
-    $middleware->prepend(HandleCors::class);
+        $middleware->prepend(HandleCors::class);
+        $middleware->alias([
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Paksa agar setiap error/exception di API tetap membawa header CORS ke browser

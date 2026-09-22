@@ -21,13 +21,7 @@
             <span class="text-sm">⊞</span>
             <span>Dashboard</span>
           </NuxtLink>
-          <NuxtLink to="/petugas/user" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
-            <div class="flex items-center gap-3">
-              <span class="text-sm">🟢</span>
-              <span>Gate Masuk</span>
-            </div>
-            <span class="text-xs text-slate-600">›</span>
-          </NuxtLink>
+
           <NuxtLink to="/petugas/keluar" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🚪</span>
@@ -35,6 +29,7 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/transaksi" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🚗</span>
@@ -42,6 +37,7 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/member/select" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">👥</span>
@@ -49,6 +45,7 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/laporan/member" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800/90 text-white font-semibold text-xs shadow-xs">
             <div class="flex items-center gap-3">
               <span class="text-sm text-cyan-400">📊</span>
@@ -56,6 +53,7 @@
             </div>
             <span class="text-xs text-cyan-400 font-bold">●</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/markir" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🅿️</span>
@@ -125,7 +123,7 @@
         <!-- PRINT HEADER (Hanya muncul saat cetak) -->
         <div class="hidden print:block text-center border-b pb-4 mb-4">
           <h2 class="text-xl font-black uppercase">LAPORAN PEMBAYARAN MEMBER PARKIR</h2>
-          <p class="text-xs text-slate-600">PLAZA ANDALAS - TANGGAL CETAK: {{ new Date().toLocaleDateString('id-ID') }}</p>
+          <p class="text-xs text-slate-600">Dicetak pada {{ printDateText || formatPrintDate() }}</p>
         </div>
 
         <!-- SEARCH & ACTION BAR -->
@@ -139,7 +137,23 @@
               class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-cyan-500 transition"
             />
           </div>
-          <span class="text-xs font-bold text-slate-500">Ditemukan: {{ filteredList.length }} transaksi</span>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="exportCsvMember"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-bold text-[11px] shadow-xs transition cursor-pointer"
+            >
+              📄 CSV / Excel
+            </button>
+            <button
+              type="button"
+              @click="cetak"
+              class="bg-[#0284C7] hover:bg-[#0369A1] text-white px-4 py-2 rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>🖨️</span> Print
+            </button>
+          </div>
         </div>
 
         <!-- TABLE -->
@@ -216,6 +230,17 @@ const router = useRouter()
 
 const laporanList = ref<any[]>([])
 const searchQuery = ref('')
+const printDateText = ref('')
+
+const formatPrintDate = (date = new Date()) =>
+  new Date(date).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 
 const fetchLaporan = async () => {
   try {
@@ -233,7 +258,6 @@ const filteredList = computed(() => {
   )
 })
 
-// FITUR KALKULASI TOTAL
 const totalTagihan = computed(() => {
   return filteredList.value.reduce((acc, curr) => acc + Number(curr.total_harga || 150000), 0)
 })
@@ -246,7 +270,36 @@ const totalKembalian = computed(() => {
   return filteredList.value.reduce((acc, curr) => acc + Number(curr.kembalian || 0), 0)
 })
 
-const cetak = () => window.print()
+const exportCsvMember = () => {
+  if (!filteredList.value.length) return
+
+  const headers = ['No Plat', 'Nama Member', 'Bulan', 'Tagihan', 'Dibayar (Cash)', 'Kembalian', 'Petugas']
+  const rows = filteredList.value.map((item) => [
+    item.no_plat || item.plat_nomor || '-',
+    item.nama_member || '-',
+    item.bulan || formatBulan(item.created_at),
+    Number(item.total_harga || 150000),
+    Number(item.jumlah_bayar || 150000),
+    Number(item.kembalian || 0),
+    item.petugas?.nama || 'Admin Pos'
+  ])
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `laporan-member-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const cetak = () => {
+  if (typeof window !== 'undefined') window.print()
+}
 
 const formatRupiah = (val: any) => new Intl.NumberFormat('id-ID').format(Number(val || 0))
 
@@ -264,7 +317,10 @@ const logout = async () => {
   router.push('/')
 }
 
-onMounted(() => fetchLaporan())
+onMounted(() => {
+  fetchLaporan()
+  printDateText.value = formatPrintDate(new Date())
+})
 </script>
 
 <style scoped>

@@ -51,7 +51,7 @@
           </NuxtLink>
 
           <NuxtLink
-            to="/petugas/markir"
+            to="/admin/markir"
             class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
           >
             <div class="flex items-center gap-3">
@@ -114,17 +114,17 @@
       <div class="p-8 space-y-6">
         <!-- FILTER & SUMMARY -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="relative w-72">
+          <div class="relative w-80">
             <span class="absolute left-3.5 top-2.5 text-xs text-slate-400">🔍</span>
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Cari nama atau email petugas..."
+              placeholder="Cari nama, email, atau no. telepon..."
               class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-semibold focus:outline-none focus:border-[#0284C7] focus:ring-2 focus:ring-[#0284C7]/20 transition"
             />
           </div>
           <span class="text-xs font-bold text-slate-400">
-            Terdaftar: <strong class="text-slate-700 font-mono">{{ filteredPetugas.length }}</strong> akun petugas kasir
+            Terdaftar: <strong class="text-slate-700 font-mono">{{ filteredPetugas.length }}</strong> akun petugas
           </span>
         </div>
 
@@ -136,19 +136,20 @@
                 <tr class="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th class="py-3.5 px-5 w-16 text-center">No</th>
                   <th class="py-3.5 px-5">Nama Petugas</th>
+                  <th class="py-3.5 px-5">Kontak WhatsApp</th>
                   <th class="py-3.5 px-5">Email Login</th>
-                  <th class="py-3.5 px-5 text-center">Role Pos</th>
+                  <th class="py-3.5 px-5 text-center">Role Otoritas</th>
                   <th class="py-3.5 px-5 text-right">Tindakan</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                 <tr v-if="loading">
-                  <td colspan="5" class="py-12 text-center text-slate-400 font-bold">
+                  <td colspan="6" class="py-12 text-center text-slate-400 font-bold">
                     Memuat daftar akun petugas...
                   </td>
                 </tr>
                 <tr v-else-if="filteredPetugas.length === 0">
-                  <td colspan="5" class="py-12 text-center text-slate-400 font-bold">
+                  <td colspan="6" class="py-12 text-center text-slate-400 font-bold">
                     Tidak ada akun petugas yang ditemukan.
                   </td>
                 </tr>
@@ -169,21 +170,45 @@
                       <span>{{ petugas.name }}</span>
                     </div>
                   </td>
+
+                  <!-- NOMOR TELEPON -->
+                  <td class="py-4 px-5 font-mono text-slate-700">
+                    <span v-if="petugas.no_telepon || petugas.no_hp" class="inline-flex items-center gap-1.5 font-bold">
+                      <span class="text-emerald-500">📞</span>
+                      {{ petugas.no_telepon || petugas.no_hp }}
+                    </span>
+                    <span v-else class="text-slate-400 italic">Belum diisi</span>
+                  </td>
+
                   <td class="py-4 px-5 font-mono text-slate-500">
                     {{ petugas.email }}
                   </td>
+
+                  <!-- ROLE IDENTIFIER -->
                   <td class="py-4 px-5 text-center">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span
+                      v-if="petugas.role === 'admin'"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                      Super Admin
+                    </span>
+                    <span
+                      v-else
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    >
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                       Petugas Pos
                     </span>
                   </td>
+
+                  <!-- AKSI: HANYA EDIT DAN HAPUS -->
                   <td class="py-4 px-5 text-right space-x-1.5">
                     <button
-                      @click="openResetModal(petugas)"
-                      class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer"
+                      @click="router.push(`/admin/petugas/edit/${petugas.id}`)"
+                      class="bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-3 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer"
                     >
-                      🔑 Reset Password
+                      ✏️ Edit
                     </button>
                     <button
                       @click="hapusPetugas(petugas.id, petugas.name)"
@@ -199,46 +224,6 @@
         </div>
       </div>
     </main>
-
-    <!-- MODAL RESET PASSWORD BERGAYA COCKPIT -->
-    <div v-if="isResetModalOpen" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-        <div>
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CREDENTIAL UPDATE</span>
-          <h3 class="text-base font-black text-slate-900 mt-0.5">Reset Password Petugas</h3>
-          <p class="text-xs text-slate-500 mt-1">
-            Ganti password akun untuk <strong class="text-slate-800">{{ activePetugas?.name }}</strong>.
-          </p>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1.5">Password Baru</label>
-          <input
-            v-model="newPassword"
-            type="password"
-            placeholder="Minimal 6 karakter..."
-            class="w-full bg-slate-50 border border-slate-200 focus:border-[#0284C7] focus:bg-white focus:ring-2 focus:ring-[#0284C7]/20 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none transition"
-          />
-        </div>
-
-        <div class="flex gap-2 pt-2">
-          <button
-            @click="isResetModalOpen = false"
-            type="button"
-            class="flex-1 py-2.5 rounded-xl font-bold text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
-          >
-            Batal
-          </button>
-          <button
-            @click="submitResetPassword"
-            type="button"
-            class="flex-1 py-2.5 rounded-xl font-black text-xs text-white bg-[#0B0F19] hover:bg-slate-800 transition cursor-pointer shadow-xs"
-          >
-            Simpan Password
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -249,28 +234,25 @@ definePageMeta({
   middleware: ['auth', 'cek-admin']
 })
 
-const { $api } = useNuxtApp()
+const { $api } = useNuxtApp() as any
 const router = useRouter()
 
 const listPetugas = ref<any[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
-const isResetModalOpen = ref(false)
-const activePetugas = ref<any>(null)
-const newPassword = ref('')
 
 const fetchPetugas = async () => {
   loading.value = true
   try {
     const res = await $api.get('/admin/petugas')
-    if (res.data && res.data.status) {
-      listPetugas.value = res.data.data
+    if (res.data) {
+      listPetugas.value = res.data.data ?? res.data
     }
   } catch (err: any) {
     console.error('Gagal mengambil data petugas:', err)
     if (err.response?.status === 401) {
       localStorage.removeItem('token')
-      router.push('/login')
+      router.push('/')
     }
   } finally {
     loading.value = false
@@ -280,36 +262,13 @@ const fetchPetugas = async () => {
 const filteredPetugas = computed(() => {
   if (!searchQuery.value) return listPetugas.value
   const q = searchQuery.value.toLowerCase()
-  return listPetugas.value.filter(
-    (item) =>
-      item.name?.toLowerCase().includes(q) ||
-      item.email?.toLowerCase().includes(q)
-  )
+  return listPetugas.value.filter((item) => {
+    const nameMatch = item.name?.toLowerCase().includes(q)
+    const emailMatch = item.email?.toLowerCase().includes(q)
+    const phoneMatch = (item.no_telepon || item.no_hp || '').toLowerCase().includes(q)
+    return nameMatch || emailMatch || phoneMatch
+  })
 })
-
-const openResetModal = (petugas: any) => {
-  activePetugas.value = petugas
-  newPassword.value = ''
-  isResetModalOpen.value = true
-}
-
-const submitResetPassword = async () => {
-  if (!newPassword.value || newPassword.value.length < 6) {
-    alert('Password baru minimal harus 6 karakter!')
-    return
-  }
-
-  try {
-    const res = await $api.put(`/admin/petugas/${activePetugas.value.id}/reset-password`, {
-      password: newPassword.value
-    })
-    alert(res.data.message || 'Password berhasil direset!')
-    isResetModalOpen.value = false
-    fetchPetugas()
-  } catch (err: any) {
-    alert(err?.response?.data?.message || 'Gagal mereset password.')
-  }
-}
 
 const hapusPetugas = async (id: number, nama: string) => {
   if (!confirm(`Apakah kamu yakin ingin menghapus akun petugas "${nama}"?`)) {
@@ -318,7 +277,7 @@ const hapusPetugas = async (id: number, nama: string) => {
 
   try {
     const res = await $api.delete(`/admin/petugas/${id}`)
-    alert(res.data.message || 'Akun petugas berhasil dihapus!')
+    alert(res.data?.message || 'Akun petugas berhasil dihapus!')
     fetchPetugas()
   } catch (err: any) {
     alert(err?.response?.data?.message || 'Gagal menghapus akun petugas.')
@@ -330,6 +289,7 @@ const logout = async () => {
     await $api.post('/logout')
   } catch {}
   localStorage.removeItem('token')
+  localStorage.removeItem('role')
   router.push('/')
 }
 

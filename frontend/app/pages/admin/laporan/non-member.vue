@@ -28,7 +28,6 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
-          <!-- CUKUP 1 MENU: LAPORAN (AKTIF) -->
           <NuxtLink to="/admin/laporan/member" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800/90 text-white font-semibold text-xs shadow-xs">
             <div class="flex items-center gap-3">
               <span class="text-sm text-cyan-400">📊</span>
@@ -36,7 +35,7 @@
             </div>
             <span class="text-xs text-cyan-400 font-bold">●</span>
           </NuxtLink>
-          <NuxtLink to="/petugas/markir" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
+          <NuxtLink to="/admin/markir" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🅿️</span>
               <span>Sedang Parkir</span>
@@ -157,6 +156,47 @@
           </div>
         </div>
 
+        <!-- GRAFIK STATISTIK PEMASUKAN TIKET NON-MEMBER (PRINT: HIDDEN) -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 print:hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">GATE REVENUE RADAR</span>
+              <h3 class="text-base font-extrabold text-slate-900">Grafik Pemasukan Kasir Pos Gerbang Keluar</h3>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="bg-slate-100 p-0.5 rounded-lg flex items-center text-xs font-bold">
+                <button
+                  type="button"
+                  @click="chartMode = 'bar'"
+                  :class="chartMode === 'bar' ? 'bg-[#0284C7] text-white' : 'text-slate-500'"
+                  class="px-3 py-1 rounded-md transition cursor-pointer"
+                >
+                  Bar Chart
+                </button>
+                <button
+                  type="button"
+                  @click="chartMode = 'line'"
+                  :class="chartMode === 'line' ? 'bg-[#0284C7] text-white' : 'text-slate-500'"
+                  class="px-3 py-1 rounded-md transition cursor-pointer"
+                >
+                  Line Chart
+                </button>
+              </div>
+
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Gate Sync
+              </span>
+            </div>
+          </div>
+
+          <div class="h-64 relative w-full">
+            <Line v-if="chartMode === 'line'" :data="chartData" :options="chartOptions" />
+            <Bar v-else :data="chartData" :options="chartOptions" />
+          </div>
+        </div>
+
         <!-- TABEL DATA LAPORAN NON-MEMBER -->
         <div class="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden print:border-black print:rounded-none">
           <div class="overflow-x-auto">
@@ -217,15 +257,41 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Line, Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
 
 definePageMeta({ 
   middleware: ['auth', 'cek-admin'] 
 })
 
-const { $api } = useNuxtApp()
+const { $api } = useNuxtApp() as any
 const router = useRouter()
 const laporanList = ref<any[]>([])
 const searchQuery = ref('')
+const chartMode = ref<'bar' | 'line'>('line')
 
 const fetchLaporan = async () => {
   try {
@@ -255,6 +321,76 @@ const totalKembalian = computed(() => {
   return filteredList.value.reduce((acc, curr) => acc + Number(curr.kembalian || 0), 0)
 })
 
+// Konfigurasi data dinamis grafik kasir tiket non-member
+const chartData = computed(() => {
+  const dataMap: Record<string, number> = {}
+
+  filteredList.value.forEach((item) => {
+    const dateKey = item.created_at 
+      ? new Date(item.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      : 'Hari Ini'
+    dataMap[dateKey] = (dataMap[dateKey] || 0) + Number(item.total_bayar || 0)
+  })
+
+  const labels = Object.keys(dataMap)
+  const values = Object.values(dataMap)
+
+  const finalLabels = labels.length > 0 ? labels : ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+  const finalValues = values.length > 0 ? values : [0, 0, 0, 0, 0, 0, 0]
+
+  return {
+    labels: finalLabels,
+    datasets: [
+      {
+        label: 'Pendapatan Kasir (Rp)',
+        borderColor: '#10B981',
+        backgroundColor: chartMode.value === 'bar' ? '#10B981' : 'rgba(16, 185, 129, 0.12)',
+        fill: chartMode.value === 'line',
+        borderWidth: 2.5,
+        borderRadius: chartMode.value === 'bar' ? 6 : 0,
+        pointRadius: chartMode.value === 'line' ? 3 : 0,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#10B981',
+        tension: 0.35,
+        data: finalValues
+      }
+    ]
+  }
+})
+
+const chartOptions = ref({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#0B0F19',
+      titleFont: { size: 11, weight: 'bold' },
+      bodyFont: { size: 11 },
+      padding: 10,
+      cornerRadius: 8,
+      callbacks: {
+        label: (context: any) => ` Kasir: Rp ${formatRupiah(context.parsed.y)}`
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: '#94A3B8', font: { size: 11, weight: 'bold' } }
+    },
+    y: {
+      border: { dash: [4, 4] },
+      grid: { color: '#F1F5F9' },
+      ticks: {
+        color: '#94A3B8',
+        font: { size: 11 },
+        callback: (value: any) => 'Rp ' + Number(value).toLocaleString('id-ID')
+      }
+    }
+  }
+})
+
 const cetak = () => window.print()
 const formatRupiah = (val: any) => new Intl.NumberFormat('id-ID').format(Number(val || 0))
 
@@ -266,3 +402,24 @@ const logout = async () => {
 
 onMounted(() => fetchLaporan())
 </script>
+
+<style scoped>
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  main, main * {
+    visibility: visible;
+  }
+  main {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+}
+</style>

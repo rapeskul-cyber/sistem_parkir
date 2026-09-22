@@ -21,7 +21,7 @@ class PaymentController extends Controller
 
             $member = Member::where('kode_member', $kode)->orWhere('token', $kode)->first();
             if ($member) {
-                if ($member->tanggal_expired && Carbon::now()->greaterThan(Carbon::parse($member->tanggal_expired))) {
+                if ($member->tanggal_expired && Member::effectiveNow()->greaterThan(Carbon::parse($member->tanggal_expired))) {
                     return response()->json([
                         'status' => true,
                         'type' => 'member',
@@ -118,14 +118,19 @@ class PaymentController extends Controller
                 ]);
             }
 
+            $user = auth()->user();
+
             $transaksi = Transaksi::create([
-                'kode_tiket' => $request->kode_tiket,
-                'plat_nomor' => $request->no_plat ?? '-',
-                'durasi_jam' => $request->durasi_jam ?? 1,
-                'total_tarif' => $totalTarif,
-                'uang_bayar' => $uangBayar,
-                'kembalian' => $kembalian,
-                'petugas' => 'Admin'
+                'kode_tiket'    => (string) $request->kode_tiket,
+                'kategori'      => strtolower($request->kategori ?: ($tiket->kategori ?? 'motor')),
+                'no_plat'       => (string) ($request->no_plat ?: ($tiket->plat_nomor ?? '-')),
+                'total_bayar'   => $totalTarif,
+                'uang_bayar'    => $uangBayar,
+                'kembalian'     => $kembalian,
+                'status'        => 'lunas',
+                'tanggal_bayar' => Carbon::now(),
+                'user_id'       => $user?->id,
+                'petugas'       => $user?->name ?? 'Petugas',
             ]);
 
             return response()->json([

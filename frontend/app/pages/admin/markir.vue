@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-[#F8FAFC] flex font-sans antialiased text-slate-800">
-    <!-- SIDEBAR PERSIS REFERENSI -->
+    <!-- SIDEBAR ADMIN PERSIS REFERENSI -->
     <aside class="w-64 bg-[#0B0F19] text-slate-400 flex flex-col justify-between py-6 px-4 shrink-0 select-none hidden md:flex">
       <div>
         <!-- Brand Header -->
@@ -10,17 +10,17 @@
               P
             </div>
             <div>
-              <span class="text-base font-extrabold tracking-tight text-white block leading-none">PARKIR</span>
+              <span class="text-base font-extrabold tracking-tight text-white block leading-none">ADMIN PARKIR</span>
               <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 block">PLAZA ANDALAS</span>
             </div>
           </div>
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         </div>
 
-        <!-- Menu Links -->
+        <!-- Menu Links Admin -->
         <nav class="space-y-1">
           <NuxtLink
-            to="/petugas"
+            to="/admin/dashboard"
             class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 font-semibold text-xs transition"
           >
             <span class="text-sm">⊞</span>
@@ -28,51 +28,18 @@
           </NuxtLink>
 
           <NuxtLink
-            to="/petugas/user"
-            class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
-          >
-            <div class="flex items-center gap-3">
-              <span class="text-sm">🟢</span>
-              <span>Gate Masuk</span>
-            </div>
-            <span class="text-xs text-slate-600">›</span>
-          </NuxtLink>
-
-          <NuxtLink
-            to="/petugas/keluar"
-            class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
-          >
-            <div class="flex items-center gap-3">
-              <span class="text-sm">🚪</span>
-              <span>Gate Keluar (Kasir)</span>
-            </div>
-            <span class="text-xs text-slate-600">›</span>
-          </NuxtLink>
-
-          <NuxtLink
-            to="/petugas/transaksi"
-            class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
-          >
-            <div class="flex items-center gap-3">
-              <span class="text-sm">🚗</span>
-              <span>Kelola Transaksi</span>
-            </div>
-            <span class="text-xs text-slate-600">›</span>
-          </NuxtLink>
-
-          <NuxtLink
-            to="/petugas/member/select"
+            to="/admin/petugas"
             class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
           >
             <div class="flex items-center gap-3">
               <span class="text-sm">👥</span>
-              <span>Kelola Member</span>
+              <span>Kelola Petugas</span>
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
 
           <NuxtLink
-            to="/petugas/laporan/member"
+            to="/admin/laporan/member"
             class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
           >
             <div class="flex items-center gap-3">
@@ -82,9 +49,9 @@
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
 
-          <!-- Active Menu: Sedang Parkir -->
+          <!-- Menu Aktif: Sedang Parkir -->
           <NuxtLink
-            to="/petugas/markir"
+            to="/admin/markir"
             class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800/90 text-white font-semibold text-xs shadow-xs"
           >
             <div class="flex items-center gap-3">
@@ -99,12 +66,12 @@
       <!-- Bottom Profile Card & Logout -->
       <div class="space-y-3 pt-4 border-t border-slate-800/80">
         <div class="bg-slate-900/90 border border-slate-800 px-3.5 py-2.5 rounded-2xl flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xs font-bold">
-            P
+          <div class="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-xs font-bold">
+            A
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-xs font-bold text-white truncate">Petugas Parkir</p>
-            <p class="text-[10px] text-emerald-400 font-medium">Monitoring Aktif</p>
+            <p class="text-xs font-bold text-white truncate">Admin Parkir</p>
+            <p class="text-[10px] text-cyan-400 font-medium">Audit Keuangan</p>
           </div>
         </div>
 
@@ -133,8 +100,8 @@
             Sync Realtime (3s)
           </span>
           <NuxtLink
-            to="/petugas"
-            class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+            to="/admin/dashboard"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             <span>←</span> Dashboard
           </NuxtLink>
@@ -262,7 +229,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 definePageMeta({
-  middleware: 'auth'
+  middleware: ['auth', 'cek-admin']
 })
 
 const { $api } = useNuxtApp()
@@ -322,6 +289,7 @@ const logout = async () => {
     await $api.post('/logout')
   } catch {}
   localStorage.removeItem('token')
+  localStorage.removeItem('user')
   router.push('/')
 }
 

@@ -1,9 +1,96 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+definePageMeta({
+  middleware: 'auth'
+})
+
+const { $api } = useNuxtApp() as any
+const router = useRouter()
+
+const kendaraanAktifList = ref<any[]>([])
+const searchQuery = ref('')
+let intervalId: any = null
+
+const fetchKendaraanAktif = async () => {
+  try {
+    const res = await $api.get('/parkir/aktif')
+    if (res.data && res.data.data) {
+      kendaraanAktifList.value = res.data.data
+    }
+  } catch (error) {
+    console.error('Gagal mengambil data kendaraan aktif:', error)
+  }
+}
+
+// Fungsi deteksi apakah tiket milik member
+const isMember = (item: any): boolean => {
+  return Boolean(
+    (item.kode_tiket && item.kode_tiket.startsWith('MBR-')) ||
+    item.tipe === 'Member' ||
+    item.kode_member
+  )
+}
+
+const filteredList = computed(() => {
+  if (!searchQuery.value) return kendaraanAktifList.value
+  const q = searchQuery.value.toLowerCase()
+  return kendaraanAktifList.value.filter(
+    (item) =>
+      item.kode_tiket?.toLowerCase().includes(q) ||
+      item.no_plat?.toLowerCase().includes(q) ||
+      item.plat_nomor?.toLowerCase().includes(q) ||
+      item.kategori?.toLowerCase().includes(q)
+  )
+})
+
+const countMobil = computed(() => {
+  return kendaraanAktifList.value.filter((item) =>
+    (item.kategori || '').toLowerCase().includes('mobil')
+  ).length
+})
+
+const countMotor = computed(() => {
+  return kendaraanAktifList.value.filter((item) =>
+    !(item.kategori || '').toLowerCase().includes('mobil')
+  ).length
+})
+
+const formatTanggal = (dateStr: string) => {
+  if (!dateStr) return '-'
+  return new Date(dateStr).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const logout = async () => {
+  try {
+    await $api.post('/logout')
+  } catch {}
+  localStorage.removeItem('token')
+  router.push('/')
+}
+
+onMounted(() => {
+  fetchKendaraanAktif()
+  intervalId = setInterval(fetchKendaraanAktif, 3000)
+})
+
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+})
+</script>
+
 <template>
   <div class="min-h-screen bg-[#F8FAFC] flex font-sans antialiased text-slate-800">
-    <!-- SIDEBAR PERSIS REFERENSI -->
+    <!-- SIDEBAR -->
     <aside class="w-64 bg-[#0B0F19] text-slate-400 flex flex-col justify-between py-6 px-4 shrink-0 select-none hidden md:flex">
       <div>
-        <!-- Brand Header -->
         <div class="flex items-center justify-between px-2 mb-7">
           <div class="flex items-center gap-2.5">
             <div class="w-9 h-9 rounded-xl bg-cyan-400 text-[#0B0F19] flex items-center justify-center font-black text-base shadow-[0_0_15px_rgba(34,211,238,0.3)]">
@@ -25,17 +112,6 @@
           >
             <span class="text-sm">⊞</span>
             <span>Dashboard</span>
-          </NuxtLink>
-
-          <NuxtLink
-            to="/petugas/user"
-            class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
-          >
-            <div class="flex items-center gap-3">
-              <span class="text-sm">🟢</span>
-              <span>Gate Masuk</span>
-            </div>
-            <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
 
           <NuxtLink
@@ -72,7 +148,7 @@
           </NuxtLink>
 
           <NuxtLink
-            to="/petugas/laporan/member"
+            to="/petugas/laporan"
             class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition"
           >
             <div class="flex items-center gap-3">
@@ -120,7 +196,6 @@
 
     <!-- CONTENT AREA -->
     <main class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-      <!-- Top Bar Header -->
       <header class="bg-white px-8 py-5 flex items-center justify-between border-b border-slate-100 shrink-0">
         <div>
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LIVE RADAR SYSTEM</span>
@@ -141,7 +216,6 @@
         </div>
       </header>
 
-      <!-- Main Body -->
       <div class="p-8 space-y-6">
         <!-- STATS COUNTER -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -179,7 +253,7 @@
           </div>
         </div>
 
-        <!-- SEARCH & ACTION BAR -->
+        <!-- SEARCH BAR -->
         <div class="flex items-center justify-between gap-4">
           <div class="relative w-72">
             <span class="absolute left-3.5 top-2.5 text-xs text-slate-400">🔍</span>
@@ -202,7 +276,7 @@
                   <th class="py-3.5 px-5">Kode Tiket / Sesi</th>
                   <th class="py-3.5 px-5">Tipe</th>
                   <th class="py-3.5 px-5">Kategori Kendaraan</th>
-                  <th class="py-3.5 px-5">No. Plat / Nama</th>
+                  <th class="py-3.5 px-5">No. Plat / Identitas</th>
                   <th class="py-3.5 px-5">Waktu Masuk</th>
                   <th class="py-3.5 px-5 text-center">Status Sesi</th>
                 </tr>
@@ -222,12 +296,15 @@
                   <td class="py-4 px-5 font-mono font-black text-indigo-600">
                     {{ item.kode_tiket }}
                   </td>
+                  <!-- BADGE TIPE (DETEKSI PREFIX MBR-) -->
                   <td class="py-4 px-5">
                     <span
                       class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase"
-                      :class="item.tipe === 'Member' ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' : 'bg-slate-100 text-slate-600'"
+                      :class="isMember(item)
+                        ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' 
+                        : 'bg-slate-100 text-slate-600'"
                     >
-                      {{ item.tipe || 'Non-Member' }}
+                      {{ isMember(item) ? 'Member' : 'Non-Member' }}
                     </span>
                   </td>
                   <td class="py-4 px-5 capitalize font-medium text-slate-700">
@@ -236,10 +313,10 @@
                     </span>
                   </td>
                   <td class="py-4 px-5 font-mono font-extrabold text-slate-900 uppercase">
-                    {{ item.no_plat || '-' }}
+                    {{ item.plat_nomor || item.no_plat || '-' }}
                   </td>
                   <td class="py-4 px-5 text-slate-500 font-medium">
-                    {{ formatTanggal(item.created_at) }}
+                    {{ formatTanggal(item.waktu_masuk || item.created_at) }}
                   </td>
                   <td class="py-4 px-5 text-center">
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase">
@@ -256,81 +333,3 @@
     </main>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-
-definePageMeta({
-  middleware: 'auth'
-})
-
-const { $api } = useNuxtApp()
-const router = useRouter()
-
-const kendaraanAktifList = ref<any[]>([])
-const searchQuery = ref('')
-let intervalId: any = null
-
-const fetchKendaraanAktif = async () => {
-  try {
-    const res = await $api.get('/parkir/aktif')
-    if (res.data && res.data.data) {
-      kendaraanAktifList.value = res.data.data
-    }
-  } catch (error) {
-    console.error('Gagal mengambil data kendaraan aktif:', error)
-  }
-}
-
-const filteredList = computed(() => {
-  if (!searchQuery.value) return kendaraanAktifList.value
-  const q = searchQuery.value.toLowerCase()
-  return kendaraanAktifList.value.filter(
-    (item) =>
-      item.kode_tiket?.toLowerCase().includes(q) ||
-      item.no_plat?.toLowerCase().includes(q) ||
-      item.kategori?.toLowerCase().includes(q)
-  )
-})
-
-const countMobil = computed(() => {
-  return kendaraanAktifList.value.filter((item) =>
-    (item.kategori || '').toLowerCase().includes('mobil')
-  ).length
-})
-
-const countMotor = computed(() => {
-  return kendaraanAktifList.value.filter((item) =>
-    !(item.kategori || '').toLowerCase().includes('mobil')
-  ).length
-})
-
-const formatTanggal = (dateStr: string) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const logout = async () => {
-  try {
-    await $api.post('/logout')
-  } catch {}
-  localStorage.removeItem('token')
-  router.push('/')
-}
-
-onMounted(() => {
-  fetchKendaraanAktif()
-  intervalId = setInterval(fetchKendaraanAktif, 3000)
-})
-
-onUnmounted(() => {
-  if (intervalId) clearInterval(intervalId)
-})
-</script>

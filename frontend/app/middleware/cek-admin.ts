@@ -1,22 +1,28 @@
+const normalizeRole = (role: string) => {
+  const normalized = (role || '').toLowerCase().trim().replace(/[\s-]+/g, '_')
+  return normalized === 'superadmin' ? 'super_admin' : normalized
+}
+
 export default defineNuxtRouteMiddleware((to, from) => {
   if (process.client) {
     const token = localStorage.getItem('token')
-    const role = localStorage.getItem('role')
+    const role = normalizeRole(localStorage.getItem('role') || '')
 
-    // 1. Jika belum login sama sekali
     if (!token) {
+      localStorage.removeItem('role')
       alert('Sesi habis atau belum login, silakan login terlebih dahulu!')
       return navigateTo('/')
     }
 
-    // 2. Pengaman khusus rute Admin
-    if (to.path.startsWith('/admin') && role !== 'admin') {
+    const isAdmin = role === 'admin' || role === 'super_admin'
+    const isPetugas = role === 'petugas' || isAdmin
+
+    if (to.path.startsWith('/admin') && !isAdmin) {
       alert('Akses ditolak! Kamu bukan admin.')
       return navigateTo('/petugas')
     }
 
-    // 3. Pengaman khusus rute Petugas
-    if (to.path.startsWith('/petugas') && role !== 'petugas' && role !== 'admin') {
+    if (to.path.startsWith('/petugas') && !isPetugas) {
       alert('Akses ditolak! Silakan login sebagai petugas yang sah.')
       return navigateTo('/')
     }

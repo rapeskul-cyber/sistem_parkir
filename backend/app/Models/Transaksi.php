@@ -17,6 +17,13 @@ class Transaksi extends Model
         'uang_bayar',
         'kembalian',
         'status',
-        'tanggal_bayar'
+        'tanggal_bayar',
+        'user_id',
+        'petugas',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(\App\Models\User::class);
+    }
 }

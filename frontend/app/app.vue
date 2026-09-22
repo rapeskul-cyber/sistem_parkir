@@ -7,10 +7,11 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
 
+let timer = null
+
 const checkThemeByTime = () => {
+  if (typeof document === 'undefined') return
   const currentHour = new Date().getHours()
-  // Siang (06:00 - 17:59) -> Mode Terang
-  // Malam (18:00 - 05:59) -> Otomatis Mode Gelap
   const isNight = currentHour < 6 || currentHour >= 18
 
   if (isNight) {
@@ -20,27 +21,31 @@ const checkThemeByTime = () => {
   }
 }
 
-let timer = null
+const handlePageShow = (event) => {
+  if (event.persisted) {
+    checkThemeByTime()
+  }
+}
 
 onMounted(() => {
   checkThemeByTime()
-  // Cek setiap 1 menit, begitu jam 18:00 langsung otomatis ganti tanpa reload
   timer = setInterval(checkThemeByTime, 60000)
+  window.addEventListener('pageshow', handlePageShow)
 })
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  window.removeEventListener('pageshow', handlePageShow)
 })
 </script>
 
 <style>
-/* CSS AJAIB OTOMATIS: Semua background putih/terang langsung jadi dark mode */
+/* CSS Otomatis Dark Mode */
 html.auto-dark-mode {
   filter: invert(0.92) hue-rotate(180deg);
   background-color: #121212 !important;
 }
 
-/* Kembalikan gambar, icon kamera, QR Code, dan video agar warnanya tidak ikut terbalik */
 html.auto-dark-mode img,
 html.auto-dark-mode video,
 html.auto-dark-mode canvas,
@@ -49,7 +54,6 @@ html.auto-dark-mode aside {
   filter: invert(1) hue-rotate(180deg);
 }
 
-/* Transisi halus saat pergantian mode */
 html {
   transition: filter 0.4s ease-in-out;
 }

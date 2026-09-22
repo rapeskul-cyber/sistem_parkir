@@ -28,7 +28,6 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
-          <!-- CUKUP 1 MENU: LAPORAN (AKTIF) -->
           <NuxtLink to="/admin/laporan/member" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800/90 text-white font-semibold text-xs shadow-xs">
             <div class="flex items-center gap-3">
               <span class="text-sm text-cyan-400">📊</span>
@@ -36,7 +35,7 @@
             </div>
             <span class="text-xs text-cyan-400 font-bold">●</span>
           </NuxtLink>
-          <NuxtLink to="/petugas/markir" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
+          <NuxtLink to="/admin/markir" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🅿️</span>
               <span>Sedang Parkir</span>
@@ -87,7 +86,7 @@
       <div class="hidden print:block p-6 text-center border-b-2 border-black mb-4">
         <h1 class="text-2xl font-black uppercase">LAPORAN PEMBAYARAN KARTU MEMBER</h1>
         <p class="text-sm font-bold">PLAZA ANDALAS MANAGEMENT SYSTEM</p>
-        <p class="text-xs text-slate-600 mt-1">Dicetak pada: {{ new Date().toLocaleString('id-ID') }}</p>
+        <p class="text-xs text-slate-600 mt-1">Dicetak pada: {{ currentDateText }}</p>
       </div>
 
       <!-- BODY -->
@@ -96,15 +95,10 @@
         <div class="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <!-- Switcher Tab -->
           <div class="flex bg-slate-200/80 p-1 rounded-2xl w-fit">
-            <button
-              class="px-5 py-2 rounded-xl text-xs font-black bg-[#0B0F19] text-white shadow-xs cursor-default"
-            >
+            <button class="px-5 py-2 rounded-xl text-xs font-black bg-[#0B0F19] text-white shadow-xs cursor-default">
               Langganan Member
             </button>
-            <NuxtLink
-              to="/admin/laporan/non-member"
-              class="px-5 py-2 rounded-xl text-xs font-black text-slate-600 hover:text-slate-900 transition"
-            >
+            <NuxtLink to="/admin/laporan/non-member" class="px-5 py-2 rounded-xl text-xs font-black text-slate-600 hover:text-slate-900 transition">
               Tiket Non-Member →
             </NuxtLink>
           </div>
@@ -157,6 +151,47 @@
           </div>
         </div>
 
+        <!-- GRAFIK STATISTIK PEMBAYARAN MEMBER (PRINT: HIDDEN) -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 print:hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">AUDIT REVENUE ANALYTICS</span>
+              <h3 class="text-base font-extrabold text-slate-900">Grafik Akumulasi Penerimaan Kas Member</h3>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="bg-slate-100 p-0.5 rounded-lg flex items-center text-xs font-bold">
+                <button
+                  type="button"
+                  @click="chartMode = 'bar'"
+                  :class="chartMode === 'bar' ? 'bg-[#0284C7] text-white' : 'text-slate-500'"
+                  class="px-3 py-1 rounded-md transition cursor-pointer"
+                >
+                  Bar Chart
+                </button>
+                <button
+                  type="button"
+                  @click="chartMode = 'line'"
+                  :class="chartMode === 'line' ? 'bg-[#0284C7] text-white' : 'text-slate-500'"
+                  class="px-3 py-1 rounded-md transition cursor-pointer"
+                >
+                  Line Chart
+                </button>
+              </div>
+
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+                Member Analytics
+              </span>
+            </div>
+          </div>
+
+          <div class="h-64 relative w-full">
+            <Line v-if="chartMode === 'line'" :data="chartData" :options="chartOptions" />
+            <Bar v-else :data="chartData" :options="chartOptions" />
+          </div>
+        </div>
+
         <!-- TABEL DATA LAPORAN MEMBER -->
         <div class="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden print:border-black print:rounded-none">
           <div class="overflow-x-auto">
@@ -181,7 +216,7 @@
                 <tr v-for="item in filteredList" :key="item.id" class="hover:bg-slate-50/60 transition">
                   <td class="py-4 px-5 font-mono font-black text-slate-900 uppercase">{{ item.no_plat || item.plat_nomor || '-' }}</td>
                   <td class="py-4 px-5 font-bold text-cyan-700">{{ item.nama_member }}</td>
-                  <td class="py-4 px-5 text-center font-mono text-slate-600">{{ item.bulan || '-' }}</td>
+                  <td class="py-4 px-5 text-center font-mono text-slate-600">{{ item.bulan || formatBulan(item.created_at) }}</td>
                   <td class="py-4 px-5 text-right font-mono font-black text-emerald-600">Rp {{ formatRupiah(item.total_harga || 150000) }}</td>
                   <td class="py-4 px-5 text-right font-mono font-extrabold text-indigo-600">Rp {{ formatRupiah(item.jumlah_bayar || item.total_harga || 150000) }}</td>
                   <td class="py-4 px-5 text-right font-mono text-slate-500">Rp {{ formatRupiah(item.kembalian || 0) }}</td>
@@ -219,15 +254,43 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Line, Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
 
 definePageMeta({ 
-  middleware: ['auth', 'cek-admin'] 
+  middleware: ['auth', 'cek-admin'],
+  ssr: false
 })
 
-const { $api } = useNuxtApp()
+const { $api } = useNuxtApp() as any
 const router = useRouter()
 const laporanList = ref<any[]>([])
 const searchQuery = ref('')
+const chartMode = ref<'bar' | 'line'>('line')
+const currentDateText = ref('Memuat waktu...')
 
 const fetchLaporan = async () => {
   try {
@@ -257,8 +320,86 @@ const totalKembalian = computed(() => {
   return filteredList.value.reduce((acc, curr) => acc + Number(curr.kembalian || 0), 0)
 })
 
+// Konfigurasi data dinamis grafik member
+const chartData = computed(() => {
+  const dataMap: Record<string, number> = {}
+
+  // Agregasi pendapatan per tanggal pendaftaran/pembayaran member
+  filteredList.value.forEach((item) => {
+    const dateKey = item.created_at 
+      ? new Date(item.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      : 'Hari Ini'
+    dataMap[dateKey] = (dataMap[dateKey] || 0) + Number(item.jumlah_bayar || item.total_harga || 150000)
+  })
+
+  const labels = Object.keys(dataMap)
+  const values = Object.values(dataMap)
+
+  // Fallback visual jika data belum ada
+  const finalLabels = labels.length > 0 ? labels : ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+  const finalValues = values.length > 0 ? values : [0, 0, 0, 0, 0, 0, 0]
+
+  return {
+    labels: finalLabels,
+    datasets: [
+      {
+        label: 'Kas Member Diterima (Rp)',
+        borderColor: '#0284C7',
+        backgroundColor: chartMode.value === 'bar' ? '#0284C7' : 'rgba(2, 132, 199, 0.12)',
+        fill: chartMode.value === 'line',
+        borderWidth: 2.5,
+        borderRadius: chartMode.value === 'bar' ? 6 : 0,
+        pointRadius: chartMode.value === 'line' ? 3 : 0,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#0284C7',
+        tension: 0.35,
+        data: finalValues
+      }
+    ]
+  }
+})
+
+const chartOptions = ref({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#0B0F19',
+      titleFont: { size: 11, weight: 'bold' },
+      bodyFont: { size: 11 },
+      padding: 10,
+      cornerRadius: 8,
+      callbacks: {
+        label: (context: any) => ` Kas: Rp ${formatRupiah(context.parsed.y)}`
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: '#94A3B8', font: { size: 11, weight: 'bold' } }
+    },
+    y: {
+      border: { dash: [4, 4] },
+      grid: { color: '#F1F5F9' },
+      ticks: {
+        color: '#94A3B8',
+        font: { size: 11 },
+        callback: (value: any) => 'Rp ' + Number(value).toLocaleString('id-ID')
+      }
+    }
+  }
+})
+
 const cetak = () => window.print()
 const formatRupiah = (val: any) => new Intl.NumberFormat('id-ID').format(Number(val || 0))
+
+const formatBulan = (dateStr: any) => {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+}
 
 const logout = async () => {
   try { await $api.post('/logout') } catch {}
@@ -266,5 +407,29 @@ const logout = async () => {
   router.push('/')
 }
 
-onMounted(() => fetchLaporan())
+onMounted(() => {
+  currentDateText.value = new Date().toLocaleString('id-ID')
+  fetchLaporan()
+})
 </script>
+
+<style scoped>
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  main, main * {
+    visibility: visible;
+  }
+  main {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+}
+</style>

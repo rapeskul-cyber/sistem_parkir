@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 definePageMeta({
   middleware: ['auth', 'cek-admin']
@@ -8,63 +8,62 @@ definePageMeta({
 
 const { $api } = useNuxtApp() as any
 const router = useRouter()
+const route = useRoute()
+const petugasId = route.params.id
+
 const loading = ref(false)
-const existingPhones = ref<string[]>([])
+const fetching = ref(true)
 
 const form = reactive({
   name: '',
   email: '',
   no_telepon: '',
-  password: '',
-  password_confirmation: '',
-  role: 'petugas'
+  password: ''
 })
 
-// Mengambil daftar nomor telepon petugas yang sudah ada untuk validasi dini
-const fetchExistingPetugas = async () => {
+const fetchDetailPetugas = async () => {
+  fetching.value = true
   try {
-    const res = await $api.get('/admin/petugas')
+    const res = await $api.get(`/admin/petugas`)
     const list = res.data?.data ?? res.data
-    if (Array.isArray(list)) {
-      existingPhones.value = list
-        .map((p: any) => String(p.no_telepon || p.no_hp || '').trim())
-        .filter((phone: string) => phone.length > 0)
+    const current = list.find((p: any) => String(p.id) === String(petugasId))
+
+    if (!current) {
+      alert('Data petugas tidak ditemukan!')
+      router.push('/admin/petugas')
+      return
     }
-  } catch (err) {
-    console.error('Gagal mengambil data referensi petugas:', err)
+
+    form.name = current.name || ''
+    form.email = current.email || ''
+    form.no_telepon = current.no_telepon || current.no_hp || ''
+  } catch (err: any) {
+    console.error('Gagal mengambil detail petugas:', err)
+    alert('Gagal mengambil data petugas.')
+    router.push('/admin/petugas')
+  } finally {
+    fetching.value = false
   }
 }
 
-const submitTambahPetugas = async () => {
+const submitEdit = async () => {
   const nameTrimmed = form.name.trim()
   const emailTrimmed = form.email.trim()
   const telpTrimmed = form.no_telepon.trim()
 
   if (!nameTrimmed || !emailTrimmed || !telpTrimmed) {
-    alert('Nama, email, dan nomor telepon petugas wajib diisi!')
+    alert('Nama, email, dan kontak telepon wajib diisi!')
     return
   }
 
-  // Sanitasi nomor telepon (hanya digit)
   const cleanPhone = telpTrimmed.replace(/\D/g, '')
   if (cleanPhone.length < 10 || cleanPhone.length > 15) {
-    alert('Nomor telepon harus berupa angka antara 10 sampai 15 digit!')
+    alert('Nomor telepon harus berupa angka antara 10 - 15 digit!')
     return
   }
 
-  // Pengecekan duplikasi nomor telepon sebelum dikirim
-  if (existingPhones.value.includes(cleanPhone)) {
-    alert(`Nomor telepon "${cleanPhone}" sudah digunakan oleh petugas lain. Masukkan nomor yang berbeda!`)
-    return
-  }
-
-  if (form.password.length < 6) {
-    alert('Password minimal 6 karakter!')
-    return
-  }
-
-  if (form.password !== form.password_confirmation) {
-    alert('Konfirmasi password tidak cocok!')
+  if (form.password && form.password.trim().length < 6) {
+    alert('Password baru minimal 6 karakter!')
     return
   }
 
@@ -74,24 +73,29 @@ const submitTambahPetugas = async () => {
       name: nameTrimmed,
       email: emailTrimmed,
       no_telepon: cleanPhone,
-      no_hp: cleanPhone,
-      password: form.password,
-      role: 'petugas' // Terkunci khusus petugas
+      no_hp: cleanPhone
     }
 
-    const res = await $api.post('/admin/petugas', payload)
-    alert(res.data?.message || 'Akun petugas kasir berhasil dibuat!')
+    const res = await $api.put(`/admin/petugas/${petugasId}`, payload)
+
+    if (form.password && form.password.trim()) {
+      const pwRes = await $api.put(`/admin/petugas/${petugasId}/reset-password`, {
+        password: form.password.trim()
+      })
+      alert(pwRes.data?.message || 'Password petugas berhasil diubah!')
+    }
+
+    alert(res.data?.message || 'Data petugas berhasil diperbarui!')
     router.push('/admin/petugas')
   } catch (err: any) {
-    console.error('Gagal menambahkan petugas:', err)
-
-    const serverErrors = err?.response?.data?.errors
-    if (serverErrors?.no_telepon || serverErrors?.no_hp) {
-      alert('Nomor telepon sudah terdaftar pada akun petugas lain!')
-    } else if (serverErrors?.email) {
+    console.error('Gagal update petugas:', err)
+    const errors = err?.response?.data?.errors
+    if (errors?.no_telepon || errors?.no_hp) {
+      alert('Nomor telepon sudah terdaftar pada petugas lain!')
+    } else if (errors?.email) {
       alert('Email sudah digunakan oleh akun lain!')
     } else {
-      alert(err?.response?.data?.message || 'Gagal menyimpan data akun petugas.')
+      alert(err?.response?.data?.message || 'Gagal memperbarui data petugas.')
     }
   } finally {
     loading.value = false
@@ -107,13 +111,13 @@ const logout = async () => {
 }
 
 onMounted(() => {
-  fetchExistingPetugas()
+  fetchDetailPetugas()
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-[#F8FAFC] flex font-sans antialiased text-slate-800">
-    <!-- SIDEBAR ADMIN PERSIS REFERENSI -->
+    <!-- SIDEBAR PERSIS REFERENSI ADMIN -->
     <aside class="w-64 bg-[#0B0F19] text-slate-400 flex flex-col justify-between py-6 px-4 shrink-0 select-none hidden md:flex">
       <div>
         <div class="flex items-center justify-between px-2 mb-7">
@@ -179,7 +183,7 @@ onMounted(() => {
             ADM
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-xs font-bold text-white truncate">Super Administrator</p>
+            <p class="text-xs font-bold text-white truncate">Administrator</p>
             <p class="text-[10px] text-cyan-400 font-medium">Control Center</p>
           </div>
         </div>
@@ -194,12 +198,12 @@ onMounted(() => {
       </div>
     </aside>
 
-    <!-- KONTEN FORM REGISTRASI -->
+    <!-- CONTENT -->
     <main class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
       <header class="bg-white px-8 py-5 flex items-center justify-between border-b border-slate-100 shrink-0">
         <div>
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">USER REGISTRATION</span>
-          <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Tambah Petugas Kasir Baru</h1>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">USER MODIFICATION</span>
+          <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Edit Data Petugas</h1>
         </div>
 
         <button
@@ -213,29 +217,16 @@ onMounted(() => {
       <div class="p-8 flex justify-center items-start">
         <div class="w-full max-w-lg bg-white rounded-3xl border border-slate-100 shadow-xs p-7 space-y-5">
           <div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FORMULIR PETUGAS</span>
-            <h2 class="text-lg font-black text-slate-900 tracking-tight mt-0.5">Akun Petugas Operasional</h2>
-            <p class="text-xs text-slate-400 mt-1">Daftarkan akun login dan nomor kontak unik untuk staf kasir pos keluar.</p>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FORM EDIT</span>
+            <h2 class="text-lg font-black text-slate-900 tracking-tight mt-0.5">Perbarui Kontak Petugas</h2>
+            <p class="text-xs text-slate-400 mt-1">Ubah nama lengkap, nomor WhatsApp, atau akun email petugas.</p>
           </div>
 
-          <!-- INFORMASI ROLE TERKUNCI -->
-          <div class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                ✓
-              </span>
-              <div>
-                <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Role Otorisasi Sistem</span>
-                <span class="text-xs font-black text-emerald-900">Petugas Pos Kasir (Operasional)</span>
-              </div>
-            </div>
-            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full uppercase">
-              Terkunci
-            </span>
+          <div v-if="fetching" class="py-12 text-center text-xs font-bold text-slate-400">
+            Memuat data petugas...
           </div>
 
-          <!-- FORM -->
-          <form @submit.prevent="submitTambahPetugas" class="space-y-4">
+          <form v-else @submit.prevent="submitEdit" class="space-y-4">
             <!-- Nama Petugas -->
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama Lengkap Petugas</label>
@@ -248,21 +239,21 @@ onMounted(() => {
               />
             </div>
 
-            <!-- Email Login -->
+            <!-- Email / Gmail -->
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1.5">Email Akun Petugas</label>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">Email Login (Gmail)</label>
               <input
                 v-model="form.email"
                 type="email"
                 required
-                placeholder="Contoh: rian.petugas@plazaandalas.com"
+                placeholder="Contoh: petugas@gmail.com"
                 class="w-full bg-slate-50 border border-slate-200 focus:border-[#0284C7] focus:bg-white focus:ring-2 focus:ring-[#0284C7]/20 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none transition"
               />
             </div>
 
-            <!-- Nomor Telepon / WhatsApp (Unik) -->
+            <!-- Kontak Telepon / WhatsApp -->
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1.5">Nomor Telepon / WhatsApp</label>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">Kontak WhatsApp / No. Telepon</label>
               <div class="relative">
                 <span class="absolute left-4 top-3 text-xs font-bold text-slate-400">📞</span>
                 <input
@@ -273,31 +264,19 @@ onMounted(() => {
                   class="w-full bg-slate-50 border border-slate-200 focus:border-[#0284C7] focus:bg-white focus:ring-2 focus:ring-[#0284C7]/20 rounded-2xl pl-10 pr-4 py-3 text-xs font-mono font-bold text-slate-800 outline-none transition"
                 />
               </div>
-              <span class="text-[10px] text-slate-400 mt-1 block">Wajib unik dan belum pernah dipakai oleh petugas lain.</span>
+              <span class="text-[10px] text-slate-400 mt-1 block">Nomor harus unik dan belum digunakan petugas lain.</span>
             </div>
 
-            <!-- Password -->
+            <!-- Password Baru -->
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1.5">Password</label>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">Password Baru (Opsional)</label>
               <input
                 v-model="form.password"
                 type="password"
-                required
-                placeholder="Minimal 6 karakter..."
+                placeholder="Kosongkan jika tidak ingin mengubah password"
                 class="w-full bg-slate-50 border border-slate-200 focus:border-[#0284C7] focus:bg-white focus:ring-2 focus:ring-[#0284C7]/20 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none transition"
               />
-            </div>
-
-            <!-- Konfirmasi Password -->
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1.5">Konfirmasi Password</label>
-              <input
-                v-model="form.password_confirmation"
-                type="password"
-                required
-                placeholder="Ulangi password di atas..."
-                class="w-full bg-slate-50 border border-slate-200 focus:border-[#0284C7] focus:bg-white focus:ring-2 focus:ring-[#0284C7]/20 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none transition"
-              />
+              <span class="text-[10px] text-slate-400 mt-1 block">Jika diisi, minimal 6 karakter dan langsung aktif setelah simpan.</span>
             </div>
 
             <!-- Action Buttons -->
@@ -307,7 +286,7 @@ onMounted(() => {
                 :disabled="loading"
                 class="flex-1 bg-[#0284C7] hover:bg-[#0369A1] text-white py-3 rounded-2xl font-black text-xs transition cursor-pointer shadow-xs uppercase tracking-wider disabled:opacity-50"
               >
-                {{ loading ? 'Mendaftarkan Petugas...' : 'Simpan Akun Petugas' }}
+                {{ loading ? 'Menyimpan...' : 'Simpan Perubahan' }}
               </button>
               <button
                 type="button"

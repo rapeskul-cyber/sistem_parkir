@@ -21,13 +21,7 @@
             <span class="text-sm">⊞</span>
             <span>Dashboard</span>
           </NuxtLink>
-          <NuxtLink to="/petugas/user" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
-            <div class="flex items-center gap-3">
-              <span class="text-sm">🟢</span>
-              <span>Gate Masuk</span>
-            </div>
-            <span class="text-xs text-slate-600">›</span>
-          </NuxtLink>
+
           <NuxtLink to="/petugas/keluar" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🚪</span>
@@ -35,6 +29,7 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/transaksi" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🚗</span>
@@ -42,6 +37,7 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/member/select" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">👥</span>
@@ -49,6 +45,7 @@
             </div>
             <span class="text-xs text-slate-600">›</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/laporan/member" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800/90 text-white font-semibold text-xs shadow-xs">
             <div class="flex items-center gap-3">
               <span class="text-sm text-cyan-400">📊</span>
@@ -56,6 +53,7 @@
             </div>
             <span class="text-xs text-cyan-400 font-bold">●</span>
           </NuxtLink>
+
           <NuxtLink to="/petugas/markir" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs font-semibold transition">
             <div class="flex items-center gap-3">
               <span class="text-sm">🅿️</span>
@@ -229,7 +227,6 @@ const filteredList = computed(() => {
   )
 })
 
-// FITUR KALKULASI TOTAL
 const totalBayar = computed(() => {
   return filteredList.value.reduce((acc, curr) => acc + Number(curr.total_bayar || curr.total_tarif || 0), 0)
 })
